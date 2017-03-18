@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 class MatrixTools():
     def __init__(self, init_site, size):
-        self.start_time = time.time()
         self.d = 0.85
         self.size = size
         self.matrix = numpy.array([])
@@ -31,11 +30,12 @@ class MatrixTools():
             for link in list_link_cur:
                 link_href = str(link.get('href'))
                 self.setLinkInList(link_href, l)
-        print("Ok!", time.time()-start_time)
+        print("Ok!", time.time() - start_time)
 
         print("Создаем матрицу смежности...")
         start_time = time.time()
         list_matrix = []
+        download = -1
         for l in self.list_links:
 
             list_row = []
@@ -59,15 +59,22 @@ class MatrixTools():
                     list_row.append(0)
 
             list_matrix.append(list_row)
+            try:
+                download_now = int(round((self.list_links.index(l) / (len(self.list_links) - 1)) * 100))
+            except ZeroDivisionError:
+                pass
+            if download != download_now:
+                print("Загрузка", str(download_now) + "%")
+                download = download_now
 
         self.matrix = numpy.asarray(list_matrix)
-        print("Ok!", time.time()-start_time)
+        print("Ok!", time.time() - start_time)
 
         print("Записываем список ссылок в файл...")
         start_time = time.time()
         f = open("lists.txt", "w")
         for l in self.links_and_size:
-            f.write(l[0] + " " + str(l[1]) + " \r")
+            f.write(l[0] + "    " + str(l[1]) + " \r")
         f.close()
         print("Ok!", time.time() - start_time)
 
@@ -85,6 +92,8 @@ class MatrixTools():
         return string.startswith('/') or string.startswith('http') or string.startswith('www')
 
     def setLinkInList(self, link_href, init_site):
+        init_site.encode('utf-8')
+        link_href.encode('utf-8')
         f = True
         if len(self.list_links) < self.size:
             if self.checkLink(link_href):
@@ -123,8 +132,8 @@ class MatrixTools():
         try:
             f = urllib.request.urlopen(req)
             soup = BeautifulSoup(f.read(), "html.parser")
-        except urllib.error.HTTPError:
-            pass
+        except (urllib.error.HTTPError, urllib.error.URLError, UnicodeEncodeError):
+            return []
         return soup.findAll('a')
 
     def purifyListSite(self, init_site, list_links):
@@ -154,8 +163,6 @@ class MatrixTools():
 
         return li
 
-
-
     def countPagerank(self):
         print("Считываем матрицу из файла...")
         start_time = time.time()
@@ -179,7 +186,7 @@ class MatrixTools():
         f = open("lists.txt", "r")
         links_and_amount = []
         for line in f:
-            line_elements = line.split(" ")
+            line_elements = line.split("    ")
             l = [line_elements[0], int(line_elements[1])]
             links_and_amount.append(l)
         print("Ok!", time.time() - start_time)
@@ -211,16 +218,15 @@ class MatrixTools():
             for i in range(0, len(pr_list)):
                 s = 0
                 for l_m in list_m[i]:
-                    s += pr_list[l_m] / links_and_amount[l_m][1]
+                    s += (pr_list[l_m] / links_and_amount[l_m][1])
                 pr_list[i] = (1 - self.d) / len(pr_list) + self.d * s
-        print("Ok!", time.time()-start_time)
-
+        print("Ok!", time.time() - start_time)
 
         print("Создаем соответствия PageRank и сайтов...")
         start_time = time.time()
         pr_links = []
         for l in range(0, len(links_and_amount)):
-            pr_round = round(pr_list[l]*100, 4)
+            pr_round = round(pr_list[l] * 100, 4)
             pr_links.append([links_and_amount[l], pr_round])
         print("Ok!", time.time() - start_time)
 
@@ -238,5 +244,7 @@ class MatrixTools():
         print("Ok!", time.time() - start_time)
 
         print("Done!")
+
+
 def sort_col(i):
     return i[1]
