@@ -16,5 +16,14 @@ tools.makeMatrix()
 tools.countPagerank() # Task 3
 ```
 
+## Task 4
+Main.py 
+```python
+tools.makeMatrix()
+tools.countPagerank() # Task 3
+```
+
 ### P.S. 
 I know that I have a mess in the code
+### P.S.S
+EZ PZ

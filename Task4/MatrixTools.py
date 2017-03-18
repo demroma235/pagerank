@@ -1,3 +1,4 @@
+import threading
 import urllib
 
 import time
@@ -12,8 +13,47 @@ class MatrixTools():
         self.d = 0.85
         self.size = size
         self.matrix = numpy.array([])
+        self.matrix_list = []
         self.list_links = [init_site]
         self.links_and_size = []
+
+    def createMatrixByRows(self, x, y):
+        if x > y:
+            k = x
+            x = y
+            y = k
+        list_matrix = []
+        row_number = 0
+        for l in range(x, y + 1):
+
+            list_row = []
+            time.sleep(1)
+            links = self.purifyListSite(self.list_links[l], self.getListLinks(self.list_links[l]))
+            size = len(links)
+            self.links_and_size.append([self.list_links[l], size, l])
+            column_number = 0
+            for l1 in self.list_links:
+
+                f = False
+                if self.list_links[l] != l1:
+
+                    for l2 in links:
+
+                        if l2 == l1:
+                            f = True
+                            break
+                        else:
+                            f = f or False
+
+                if f:
+                    list_row.append([l, column_number])
+                    if list_row not in list_matrix:
+                        list_matrix.append(list_row)
+                    list_row = []
+                column_number += 1
+            row_number += 1
+
+        self.matrix_list.extend(list_matrix)
 
     def makeMatrix(self):
         print("Собираем список ссылок...")
@@ -34,45 +74,35 @@ class MatrixTools():
 
         print("Создаем разреженную матрицу...")
         start_time = time.time()
-        list_matrix = []
-        download = -1
-        row_number = 0
-        for l in self.list_links:
+        choices_size_matrix = []
+        half_size = int(self.size / 2)
+        t1_size_2 = int(half_size / 2)
+        t3_size_2 = int((self.size - half_size) / 2) + half_size
+        choices_size_matrix.append([0, t1_size_2])
+        choices_size_matrix.append([t1_size_2 + 1, half_size])
+        choices_size_matrix.append([half_size + 1, t3_size_2])
+        choices_size_matrix.append([t3_size_2 + 1, self.size - 1])
+        t1 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
+                              args={choices_size_matrix[0][0], choices_size_matrix[0][1]})
+        t2 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
+                              args={choices_size_matrix[1][0], choices_size_matrix[1][1]})
+        t3 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
+                              args={choices_size_matrix[2][0], choices_size_matrix[2][1]})
+        t4 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
+                              args={choices_size_matrix[3][0], choices_size_matrix[3][1]})
 
-            list_row = []
-            links = self.purifyListSite(l, self.getListLinks(l))
-            size = len(links)
-            self.links_and_size.append([l, size])
-            column_number = 0
-            for l1 in self.list_links:
+        t1.start()
+        t2.start()
+        t3.start()
+        t4.start()
+        t1.join()
+        t2.join()
+        t3.join()
+        t4.join()
 
-                f = False
-                if l != l1:
-
-                    for l2 in links:
-
-                        if l2 == l1:
-                            f = True
-                            break
-                        else:
-                            f = f or False
-
-                if f:
-                    list_row.append([row_number, column_number])
-                    list_matrix.append(list_row)
-                    list_row = []
-                column_number += 1
-            row_number += 1
-
-            try:
-                download_now = int(round((self.list_links.index(l) / (len(self.list_links) - 1)) * 100))
-            except ZeroDivisionError:
-                pass
-            if download != download_now:
-                print("Загрузка", str(download_now) + "%")
-                download = download_now
-
-        self.matrix = numpy.asarray(list_matrix)
+        self.matrix = numpy.asarray(sorted(self.matrix_list))
+        self.links_and_size = sorted(self.links_and_size, key=lambda k: k[2])
+        print(self.links_and_size)
         print("Ok!", time.time() - start_time)
 
         print("Записываем список ссылок в файл...")
@@ -209,6 +239,7 @@ class MatrixTools():
         list_m = []
         for i in range(0, len(pr_list)):
             row_m = getListRowsByColumn(matrix, i)
+            print(row_m)
             list_m.append(row_m)
         print("Ok!", time.time() - start_time)
 
@@ -256,7 +287,6 @@ def getListRowsByColumn(matrix, column):
     for l in matrix:
         if l[1] == column:
             result_list.append(l[0])
-    print(column, result_list)
     return result_list
 
 
