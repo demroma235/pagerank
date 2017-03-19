@@ -156,7 +156,7 @@ class MatrixTools():
 
     def getListLinks(self, url):
         req = urllib.request.Request(
-            url,
+            url[:-1],
             data=None,
             headers={
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, '
