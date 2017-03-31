@@ -8,22 +8,14 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
 
-class MatrixTools():
+class MatrixToolsOld():
     def __init__(self, init_site, size):
-        self.choices_size_matrix = []
         self.d = 0.85
         self.size = size
         self.matrix = numpy.array([])
         self.matrix_list = []
         self.list_links = [init_site]
         self.links_and_size = []
-        half_size = int(self.size / 2)
-        t1_size_2 = int(half_size / 2)
-        t3_size_2 = int((self.size - half_size) / 2) + half_size
-        self.choices_size_matrix.append([0, t1_size_2])
-        self.choices_size_matrix.append([t1_size_2 + 1, half_size])
-        self.choices_size_matrix.append([half_size + 1, t3_size_2])
-        self.choices_size_matrix.append([t3_size_2 + 1, self.size - 1])
 
     def createMatrixByRows(self, x, y):
         if x > y:
@@ -82,15 +74,22 @@ class MatrixTools():
 
         print("Создаем разреженную матрицу...")
         start_time = time.time()
-
+        choices_size_matrix = []
+        half_size = int(self.size / 2)
+        t1_size_2 = int(half_size / 2)
+        t3_size_2 = int((self.size - half_size) / 2) + half_size
+        choices_size_matrix.append([0, t1_size_2])
+        choices_size_matrix.append([t1_size_2 + 1, half_size])
+        choices_size_matrix.append([half_size + 1, t3_size_2])
+        choices_size_matrix.append([t3_size_2 + 1, self.size - 1])
         t1 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
-                              args={self.choices_size_matrix[0][0], self.choices_size_matrix[0][1]})
+                              args={choices_size_matrix[0][0], choices_size_matrix[0][1]})
         t2 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
-                              args={self.choices_size_matrix[1][0], self.choices_size_matrix[1][1]})
+                              args={choices_size_matrix[1][0], choices_size_matrix[1][1]})
         t3 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
-                              args={self.choices_size_matrix[2][0], self.choices_size_matrix[2][1]})
+                              args={choices_size_matrix[2][0], choices_size_matrix[2][1]})
         t4 = threading.Thread(target=self.createMatrixByRows, name='createMatrixByRows',
-                              args={self.choices_size_matrix[3][0], self.choices_size_matrix[3][1]})
+                              args={choices_size_matrix[3][0], choices_size_matrix[3][1]})
 
         t1.start()
         t2.start()
@@ -100,7 +99,7 @@ class MatrixTools():
         t2.join()
         t3.join()
         t4.join()
-        print(self.choices_size_matrix)
+
         self.matrix = numpy.asarray(sorted(self.matrix_list))
         self.links_and_size = sorted(self.links_and_size, key=lambda k: k[2])
         print(self.links_and_size)
@@ -199,42 +198,6 @@ class MatrixTools():
 
         return li
 
-    def countPR(self, start_row, end_row):
-        if start_row > end_row:
-            just = start_row
-            start_row = end_row
-            end_row = just
-
-        pr = []
-        for j in range(0, 30):
-            if j > 0:
-                f = True
-                while f:
-                    for it in self.number_iter:
-                        if it+1 == j:
-                            f = True
-                            break
-                        if it == j:
-                            f = f and True
-                        else:
-                            f = f and False
-                    f = not f
-                    time.sleep(0.001)
-                    # print(f, j, self.number_iter, start_row, end_row)
-            pr = self.pr_list
-            for i in range(start_row, end_row+1):
-                s = 0
-                for l_m in self.list_m[i]:
-                    try:
-                        s += (pr[l_m] / self.links_and_amount[l_m][1])
-                    except ZeroDivisionError:
-                        pass
-
-                self.pr_list[i] = (1 - self.d) / len(self.pr_list) + self.d * s
-                self.number_iter[i] += 1
-
-
-
     def countPagerank(self):
         print("Считываем матрицу из файла...")
         start_time = time.time()
@@ -257,63 +220,50 @@ class MatrixTools():
         print("Считываем список ссылок из файла...")
         start_time = time.time()
         f = open("lists.txt", "r")
-        self.links_and_amount = []
+        links_and_amount = []
         for line in f:
             line_elements = line.split("    ")
             l = [line_elements[0], int(line_elements[1])]
-            self.links_and_amount.append(l)
+            links_and_amount.append(l)
         print("Ok!", time.time() - start_time)
 
         print("Формируем начальный список...")
         start_time = time.time()
-        self.pr_list = []
-        for l in self.links_and_amount:
-            self.pr_list.append(1 / len(self.links_and_amount))
+        pr_list = []
+        for l in links_and_amount:
+            pr_list.append(1 / len(links_and_amount))
         print("Ok!", time.time() - start_time)
 
         print("Собираем входящие ссылки...")
         start_time = time.time()
-        self.list_m = []
-        for i in range(0, len(self.pr_list)):
+        list_m = []
+        for i in range(0, len(pr_list)):
             row_m = getListRowsByColumn(matrix, i)
             print(row_m)
-            self.list_m.append(row_m)
+            list_m.append(row_m)
         print("Ok!", time.time() - start_time)
 
         print("Считаем PageRank...")
         start_time = time.time()
-        self.number_iter = []
-        for j in range(0, self.size):
-            self.number_iter.append(0)
-        self.number_iter = numpy.asarray(self.number_iter)
-        choices_size_matrix = self.choices_size_matrix
-        # time.sleep(3)
-        p1 = threading.Thread(target=self.countPR, name='countPR',
-                              args={choices_size_matrix[0][0], choices_size_matrix[0][1]})
-        p2 = threading.Thread(target=self.countPR, name='countPR',
-                              args={choices_size_matrix[1][0], choices_size_matrix[1][1]})
-        p3 = threading.Thread(target=self.countPR, name='countPR',
-                              args={choices_size_matrix[2][0], choices_size_matrix[2][1]})
-        p4 = threading.Thread(target=self.countPR, name='countPR',
-                              args={choices_size_matrix[3][0], choices_size_matrix[3][1]})
-
-        p1.start()
-        p2.start()
-        p3.start()
-        p4.start()
-        p1.join()
-        p2.join()
-        p3.join()
-        p4.join()
-        
+        pr = []
+        for j in range(0, 30):
+            pr = pr_list
+            for i in range(0, len(pr_list)):
+                s = 0
+                for l_m in list_m[i]:
+                    try:
+                        s += (pr[l_m] / links_and_amount[l_m][1])
+                    except ZeroDivisionError:
+                        pass
+                pr_list[i] = (1 - self.d) / len(pr_list) + self.d * s
         print("Ok!", time.time() - start_time)
 
         print("Создаем соответствия PageRank и сайтов...")
         start_time = time.time()
         pr_links = []
-        for l in range(0, len(self.links_and_amount)):
-            pr_round = round(self.pr_list[l] * 100, 4)
-            pr_links.append([self.links_and_amount[l], pr_round])
+        for l in range(0, len(links_and_amount)):
+            pr_round = round(pr_list[l] * 100, 4)
+            pr_links.append([links_and_amount[l], pr_round])
         print("Ok!", time.time() - start_time)
 
         print("Сортируем список")
@@ -331,6 +281,7 @@ class MatrixTools():
 
         print("Done!")
 
+
 def getListRowsByColumn(matrix, column):
     result_list = []
     for l in matrix:
@@ -341,4 +292,3 @@ def getListRowsByColumn(matrix, column):
 
 def sort_col(i):
     return i[1]
-
